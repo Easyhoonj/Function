@@ -1,4 +1,4 @@
-function [data_mean,data_anomaly,t_choose,v_choose,X_s_np_primitive,n_contribute,m_contribute]=SNPF(data,lat)
+function [data_mean,data_anomaly,t_choose,v_choose,X_s_np_primitive,n_contribute,m_contribute,SN_ratio]=SNPF(data,lat)
 %% S/N-maximizing patterns filtering
 % written by Jin Juncheng in 20261005
 % firstly revised in 20261020
@@ -12,6 +12,9 @@ function [data_mean,data_anomaly,t_choose,v_choose,X_s_np_primitive,n_contribute
 % t_choose - 选择的前M个PC时间系数,大小为[nMember,nTime,M]
 % v_choose - 选择的前M个空间分布,大小为[nLon,nLat,M]
 % X_s_np_primitive - 人为重构场
+% n_contribute - 第一步所挑选前N个空间模态对应的方差贡献
+% m_contribute - 第二步所挑选前M个空间模态对应的方差贡献
+% SN_ratio - 第k个最终模态对应的信噪比
 %% 第一步:数据预处理
 % 各维度长度
 [nLon,nLat,nTime,nMember]=size(data);
@@ -108,6 +111,11 @@ end
 for i=1:M
     m_contribute(i)=s_sort(i)/sum(s_sort)*100;
 end
+% 计算信噪比
+for i=1:M
+    SN_ratio(i)=s_sort(i)/(1-s_sort(i));
+end
+
 %% 第七步: 取前M个模态还原数据信息(还原的为所有成员信息)
 X_s_np=t(:,1:M)*v(:,1:M)';
 % 还原维度信息,注意距平还原.
