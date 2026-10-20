@@ -1,7 +1,6 @@
 function [data_mean,data_anomaly,t_choose,v_choose,X_s_np_primitive,n_contribute,m_contribute,SN_ratio]=SNPF(data,lat)
 %% S/N-maximizing patterns filtering
 % written by Jin Juncheng in 20261005
-% firstly revised in 20261020
 
 % data - 输入数据为四维矩阵(nLon,nLat,nTime,nMember).
 % lat - 用于网格权重平均,更加贴近事实([nLat,1])
@@ -23,9 +22,8 @@ data_mean=mean(mean(data,3,'omitmissing'),4,"omitmissing");
 data_anomaly=data-data_mean;
 % 设置陆地掩码nan,防止后续nan值扩散
 mask_land=all(all(isnan(data_anomaly),4),3);
-idx_ocean=find(~mask_land);
 data_anomaly(isnan(data_anomaly))=0;
-
+% 网格权重(EOF分析协方差)
 w=sqrt(cosd(lat));
 w_reshape=reshape(w,1,nLat,1,1);
 w_2d=repmat(w',nLon,1);
@@ -38,11 +36,12 @@ for i=1:nMember
     Xi=reshape(Xi,nTime,nLon*nLat);
     Ci{i}=(Xi'*Xi)/(nTime-1);
 end
-
+% 求解集合平均
 C=sum(cat(3,Ci{:}),3,"omitmissing");
 C_ensemble=C/nMember;
 %% 第三步:分解特征向量以及特征值矩阵
 % eig默认分解特征向量矩阵归一化处理
+% 特征值求解前提矩阵为方阵
 [A,sigma_var_matrix]=eig(C_ensemble);
 S_var=diag(sigma_var_matrix);
 % 对特征值进行排序
@@ -54,14 +53,16 @@ for i=1:length(S_var)
     ck(:,i)=X*A(:,i)/sqrt(sigma_var_sort(i));
 end
 %% 第五步: Sek=skek
-% 取前N个EOF模态参与后续,用North判断法判断,大约75%~95%区间即可. N可取50~400, M可取2~20 
+% 取前N个EOF模态参与后续,用North判断法判断,大约75%~95%区间即可. 
+% 经验性取法: N可取50~400, M可取2~20 
 for i=1:length(S_var)-1
     ej=sigma_var_sort(i)*sqrt(2/length(S_var));
     if sigma_var_sort(i)-sigma_var_sort(i+1)<ej
         N=i;
     end
 end
-% 人为控制,防止N过大,导致量级爆炸
+% 人为控制,防止N过大,导致后续计算时量级爆破
+% 此处经验性的取中位数
 if N>225
     N=225;
 elseif N<50
@@ -73,12 +74,7 @@ for i=1:N
 end
 % 求取ck集合平均
 ck_primitive=reshape(ck,nTime,nMember,length(sigma_var_sort));
-% 插曲:用于检测数组还原是否符合实际意义
-m=10; t=3; k=1;
-row=(m-1)*nTime+t;
-val_ck=ck(row,k);
-val_reshape=ck_primitive(t,m,k);
-disp([val_ck,val_reshape])
+% 经过检验,数组还原仍旧符合实际物理意义,并没有发生信息错位现象
 % 求解
 ck_ensemble=squeeze(sum(ck_primitive,2,'omitmissing')/nMember);
 S=ck_ensemble(:,1:N)'*ck_ensemble(:,1:N);
@@ -102,6 +98,7 @@ for i=1:length(s_var)-1
         M=i;
     end
 end
+% 同N的处理方法,防止过长M取值,导致量级爆破
 if M>11
     M=11;
 elseif M<2
@@ -115,7 +112,6 @@ end
 for i=1:M
     SN_ratio(i)=s_sort(i)/(1-s_sort(i));
 end
-
 %% 第七步: 取前M个模态还原数据信息(还原的为所有成员信息)
 X_s_np=t(:,1:M)*v(:,1:M)';
 % 还原维度信息,注意距平还原.
@@ -123,7 +119,7 @@ X_s_np_shape=reshape(X_s_np,nTime,nMember,nLon,nLat);
 X_s_np_shape_anomaly=permute(X_s_np_shape,[3,4,1,2]);
 X_s_np_shape_anomaly=X_s_np_shape_anomaly./w_reshape;
 X_s_np_primitive=X_s_np_shape_anomaly+data_mean;
-% 标准化t和v, v单位是data单位, t单位是标准差;归一化操作,便于不同模态t进行比较
+% 标准化t和v, v单位与data单位相同, t单位是标准差;归一化操作,便于不同模态t进行比较
 sd=std(t(:,1:M),0,1);               
 t(:,1:M)=t(:,1:M)./sd;
 v(:,1:M)=v(:,1:M).*sd;             
