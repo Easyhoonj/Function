@@ -48,7 +48,7 @@ sigma_var_matrix=sigma_var_matrix(index,index);
 A=A(:,index);
 %% 第四步: 求解主成分PCn序列并归一化
 % 防止病态、失真、选错模态,小模态信息在数值上被彻底淹没
-% 同时归一化后,使得各PC能够进行比较(否则因为PC量级不同,置于一张图进行比较时,可能只有PC大的有明显起伏,其余为平线)
+% 同时归一化后,使得各PC能够进行比较(否则因为PC量级不同,可能只有PC大的有明显起伏,其余为平线,处理时也容易导致误差)
 for i=1:length(S_var)
     ck(:,i)=X*A(:,i)/sqrt(sigma_var_sort(i));
 end
@@ -129,7 +129,7 @@ X_s_np_shape=reshape(X_s_np,nTime,nMember,nLon,nLat);
 X_s_np_shape_anomaly=permute(X_s_np_shape,[3,4,1,2]);
 X_s_np_shape_anomaly=X_s_np_shape_anomaly./w_reshape;
 X_s_np_primitive=X_s_np_shape_anomaly+data_mean;
-% 标准化t和v, v单位与data单位相同, t单位是标准差;归一化操作,便于不同模态t进行比较
+% 标准化t和v, v单位与data单位相同, t单位是标准差;归一化操作,便于不同模态t进行比较(这一步主要是为了绘图,前面则为了保持变换一致以及标准化PC)
 sd=std(t(:,1:M),0,1);               
 t(:,1:M)=t(:,1:M)./sd;
 v(:,1:M)=v(:,1:M).*sd;             
