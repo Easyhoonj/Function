@@ -65,7 +65,8 @@ for i=1:length(S_var)-1
     end
 end
 if isempty(N)
-    N=median(length(S_var));
+    N=median(1:S_var);
+    N=floor(N);
 end
 % 人为控制,防止N过大,导致后续计算时量级爆破
 % 此处经验性的取中位数
